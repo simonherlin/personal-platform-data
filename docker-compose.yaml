@@ -1,0 +1,117 @@
+version: "3.9"
+services:
+  s3:
+    image: minio/minio:RELEASE.2021-11-24T23-19-33Z
+    restart: unless-stopped
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    environment:
+      - MINIO_ROOT_USER=${AWS_ACCESS_KEY_ID}
+      - MINIO_ROOT_PASSWORD=${AWS_SECRET_ACCESS_KEY}
+    command: server /data --console-address ":9001"
+    networks:
+      - internal
+      - public
+    volumes:
+      - minio_data:/data
+
+  db:
+    image: postgres:13
+    container_name: unified_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: unified_user
+      POSTGRES_PASSWORD: unified_password
+      POSTGRES_DB: unified_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  mlflow:
+    container_name: tracker_mlflow
+    image: tracker_ml
+    restart: unless-stopped
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_REGION}
+      - MLFLOW_S3_ENDPOINT_URL=http://s3:9000
+    entrypoint: mlflow server --backend-store-uri postgresql+psycopg2://unified_user:unified_password@db:5432/unified_db --default-artifact-root s3://${AWS_BUCKET_NAME}/
+    networks:
+      - public
+      - internal
+    depends_on:
+      - wait-for-db
+
+  zenml:
+    image: zenmldocker/zenml:latest
+    restart: unless-stopped
+    ports:
+      - "9002:9002"
+    environment:
+      - ZENML_TRACKING_DB_URI=postgresql://unified_user:unified_password@db:5432/unified_db
+      - ZENML_ARTIFACT_STORE_URI=s3://${AWS_BUCKET_NAME}/zenml-artifacts
+    entrypoint: zenml up
+    networks:
+      - public
+      - internal
+    depends_on:
+      - db
+      - create_s3_buckets
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - jenkins_data:/var/jenkins_home
+    networks:
+      - public
+    user: root
+    depends_on:
+      - db
+
+  create_s3_buckets:
+    image: minio/mc
+    depends_on:
+      - "s3"
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set minio http://s3:9000 '${AWS_ACCESS_KEY_ID}' '${AWS_SECRET_ACCESS_KEY}') do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb minio/${AWS_BUCKET_NAME};
+      /usr/bin/mc mb minio/${AWS_BUCKET_NAME}/zenml-artifacts;
+      exit 0;
+      "
+    networks:
+      - internal
+
+  wait-for-db:
+    image: atkrad/wait4x
+    depends_on:
+      - db
+    command: tcp db:5432 -t 90s -i 250ms
+    networks:
+      - internal
+
+networks:
+  internal:
+  public:
+    driver: bridge
+
+volumes:
+  minio_data:
+  postgres_data:
+  jenkins_data:
