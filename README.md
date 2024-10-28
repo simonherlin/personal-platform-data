@@ -2,16 +2,15 @@
 
 ### Introduction
 
-Ce dépôt contient l'infrastructure nécessaire pour lancer un environnement cloud interne pour les projets de data science. Cette infrastructure comprend :
+This repository contains the infrastructure required to launch an internal cloud environment for data science projects. This setup includes:
 
-- Un service de stockage S3 (MinIO) pour stocker les artefacts,
-- Une base de données MySQL pour MLflow,
-- Une base de données PostgreSQL pour ZenML,
-- Un serveur MLflow pour le suivi des expérimentations,
-- Un serveur ZenML pour l'orchestration des pipelines,
-- Un serveur Jenkins pour l'automatisation des pipelines CI/CD.
+- An S3 storage service (MinIO) for storing artifacts,
+- A PostgreSQL database for ZenML,
+- An MLflow server for experiment tracking,
+- A ZenML server for pipeline orchestration,
+- A Jenkins server for CI/CD pipeline automation.
 
-L'ensemble des services est configuré pour stocker les données de manière persistante, même en cas de redémarrage des conteneurs.
+All services are configured to store data persistently, ensuring data is retained even if the containers are restarted.
 
 ---
 
@@ -19,20 +18,21 @@ L'ensemble des services est configuré pour stocker les données de manière per
 
 ```bash
 infra_internal_cloud
-├── create_bucket.py                # Script Python pour créer un bucket S3
-├── docker-compose.yml              # Configuration Docker Compose
-├── Makefile                        # Fichier Makefile pour simplifier les commandes
+├── create_bucket.py                # Python script to create an S3 bucket
+├── docker-compose.yml              # Docker Compose configuration
+├── Makefile                        # Makefile to simplify commands
 ├── mlflow
-│   └── Dockerfile                  # Dockerfile pour le serveur MLflow
+│   └── Dockerfile                  # Dockerfile for the MLflow server
 ├── quickstart
-│   └── mlflow_tracking.py          # Script de test pour MLflow
-├── .env                            # Fichier de configuration des variables d'environnement
-└── README.md                       # Documentation du projet
+│   └── mlflow_tracking.py          # Test script for MLflow
+├── .env                            # Environment variable configuration file
+└── README.md                       # Project documentation
+                    # Documentation du projet
 ```
 
 ---
 
-Prérequis
+### Prerequisites
 - Docker et Docker compose
 - python 3.x
 
@@ -41,7 +41,7 @@ Prérequis
 
 Configuration
 
-Avant de lancer l'infrastructure, créez un fichier .env à la racine du projet pour stocker les variables d'environnement nécessaires. Voici un exemple de contenu pour ce fichier :
+Before launching the infrastructure, create an .env file at the project root to store the necessary environment variables. Here is an example of what this file should contain:
 ```dotenv
 AWS_ACCESS_KEY_ID=admin
 AWS_SECRET_ACCESS_KEY=sample_key
@@ -56,68 +56,68 @@ MLFLOW_TRACKING_URI=http://localhost:5000
 ZENML_TRACKING_DB_URI=postgresql://zenml_user:zenml_password@localhost:5433/zenml
 ZENML_ARTIFACT_STORE_URI=s3://mlflow/zenml-artifacts
 ```
-***Remarque*** : Assurez-vous de personnaliser les valeurs des variables d'environnement selon vos besoins.
+***Note***: Make sure to customize the environment variable values according to your requirements.
 
 ---
-### Commandes du Makfile
+### Makefile Commands
 
-Le Makefile inclus dans ce dépôt facilite la gestion des services et des configurations. Voici les commandes disponibles :
+The Makefile in this repository simplifies the management of services and configurations. Here are the available commands:
 
-- ***Chargement des variables d'environnement :***
+- ***Load environment variables:***
 ```bash
 make install_env_vars
 ```
-- ***Création du Bucket S3 pour MLflow et ZenML :***
+- ***Create the S3 Bucket for MLflow and ZenML:***
 ```bash
 make create_bucket
 ```
-- ***Démarrage des services :***
+- ***Start services:***
 ```bash
 make up
 ```
-- ***Arrêt des services :***
+- ***Stop services:***
 ```bash
 make down
 ```
-- ***Redémarrage des services :***
+- ***Restart services:***
 ```bash
 make restart
 ```
 
 ---
-### Démarrage Rapide
+### Quick Start
 
-1. ***Charger les variables d'environnement dans votre shell pour les utiliser dans Docker :***
+1. ***Load environment variables into your shell to use in Docker:***
 ```bash
 make install_env_vars
 ```
-2. ***Démarrer les services avec Docker Compose :***
+2. ***Start services with Docker Compose:***
 ```bash
 make up
 ```
-Une fois que tous les services sont en place, vous pouvez accéder aux différentes interfaces via les liens suivants :
+Once all services are up, you can access the various interfaces via the following links:
 - ***MLflow :*** http://localhost:5000
 - ***ZenML :*** http://localhost:9002
 - ***Jenkins :*** http://localhost:8080
 - ***MinIO Console :*** http://localhost:9011
 
-3. ***Tester le suivi MLflow avec le script quickstart/mlflow_tracking.py :***
+3. ***Test MLflow tracking with the quickstart/mlflow_tracking.py script:***
 ```bash
 python quickstart/mlflow_tracking.py
 ```
 
 ---
 
-### Volumes Persistants
+### Persistent Volumes
 
-Pour garantir que les données de chaque service soient conservées même après un redémarrage, chaque service utilise un volume Docker dédié :
+To ensure that data for each service is retained even after a restart, each service uses a dedicated Docker volume:
 - ***MinIO :*** minio_data
 - ***PostgreSQL (ZenML) :*** postgres_data
 - ***Jenkins :*** jenkins_data
 
-### Arrêt des Services
+### Stopping Services
 
-Pour arrêter et supprimer tous les services (y compris les volumes persistants), exécutez la commande suivante à la racine du projet :
+To stop and remove all services (including persistent volumes), run the following command at the project root:
 ```bash
 make down
 ```
