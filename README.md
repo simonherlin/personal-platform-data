@@ -32,7 +32,7 @@ infra_internal_cloud
 
 ---
 
-### Prerequisites
+### Prerequisites
 - Docker et Docker compose
 - python 3.x
 
